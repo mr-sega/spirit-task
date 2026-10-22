@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Attributes\Unguarded;
 use Illuminate\Database\Eloquent\Model;
 
+/** @property string $price */
 #[Unguarded]
 class OrderItem extends Model
 {
