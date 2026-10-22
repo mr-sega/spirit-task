@@ -1,8 +1,12 @@
 <?php
 
+use App\Http\Controllers\Admin\ListOrdersController;
+use App\Http\Controllers\Admin\ShowOrderController;
 use Illuminate\Support\Facades\Route;
 
-Route::inertia('/', 'Welcome')->name('home');
+Route::redirect('/', '/orders')->name('home');
+Route::get('/orders', ListOrdersController::class)->name('orders.index');
+Route::get('/orders/{id}', ShowOrderController::class)->name('orders.show');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::inertia('dashboard', 'Dashboard')->name('dashboard');
