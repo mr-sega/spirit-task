@@ -2,7 +2,8 @@
 
 Laravel 13 + Vue (Inertia), PHP 8.4, Node.js 24, PostgreSQL 17.
 Условия задания находятся в [task/README.md](task/README.md).
-Сейчас подготовлены starter kit и Docker-окружение; обработка вебхуков и API заказов ещё не реализованы.
+Реализованы приём вебхуков и хранение заказов, позиций и истории. API заказов и письма — следующие этапы.
+Принятые допущения описаны в [DECISIONS.md](DECISIONS.md).
 
 ## Запуск с нуля
 
@@ -71,3 +72,36 @@ docker compose up -d
 После обновления зависимостей выполните `composer install`, `npm ci` и `npm run build` внутри контейнера.
 После изменения Dockerfile повторите `docker compose build` и `docker compose up -d`.
 Не используйте `docker compose down -v`, если нужно сохранить данные: эта команда удаляет volumes, включая PostgreSQL.
+
+## Проверка вебхука
+
+Задайте `MARKETPLACE_WEBHOOK_SECRET` в `.env`, затем перезапустите приложение.
+В примере замените `your-local-secret` тем же значением:
+
+```bash
+docker compose exec app php artisan migrate
+docker compose restart app worker
+docker compose exec -e MARKETPLACE_WEBHOOK_SECRET=your-local-secret app php task/examples/send-event.php http://app:8000/api/webhooks/marketplace task/examples/order-paid.json
+```
+
+Успех и безопасный повтор возвращают HTTP 204. События сохраняются в `marketplace_events`,
+заказы — в `orders`, позиции — в `order_items`, история — в `order_status_histories`.
+Отдельно запустить тесты вебхуков:
+
+```bash
+docker compose exec app php artisan test tests/Feature/Marketplace
+```
+
+### Конкурентные доставки на PostgreSQL
+
+Обычные PHPUnit-тесты используют SQLite в памяти. Для проверки блокировок и повторов
+на реальной PostgreSQL создайте **отдельную** тестовую базу (команда `createdb` нужна один раз):
+
+```bash
+docker compose exec postgres createdb -U spirit spirit_webhooks_test
+docker compose exec -e DB_DATABASE=spirit_webhooks_test app php tests/Integration/check-webhook-concurrency.php
+```
+
+Скрипт отказывается работать с другой базой, применяет миграции и запускает 16
+параллельных подписанных запросов через HTTP kernel в независимых процессах.
+Проверяет дедупликацию, текущий снимок и историю. При повторном запуске использует новые ID.
