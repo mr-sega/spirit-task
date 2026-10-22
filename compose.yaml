@@ -1,0 +1,67 @@
+name: spirit-task
+
+x-app: &app
+    build:
+        context: ./docker
+    image: spirit-task-app:local
+    working_dir: /var/www/html
+    volumes:
+        - .:/var/www/html
+        - vendor:/var/www/html/vendor
+        - node_modules:/var/www/html/node_modules
+    environment:
+        APP_URL: http://localhost:${APP_PORT:-8000}
+        DB_CONNECTION: pgsql
+        DB_HOST: postgres
+        DB_PORT: 5432
+        DB_DATABASE: spirit_task
+        DB_USERNAME: spirit
+        DB_PASSWORD: ${POSTGRES_PASSWORD:-local-password}
+        QUEUE_CONNECTION: database
+        CACHE_STORE: database
+        SESSION_DRIVER: database
+        MAIL_MAILER: smtp
+        MAIL_HOST: mailpit
+        MAIL_PORT: 1025
+        MAIL_SCHEME: smtp
+    depends_on:
+        postgres:
+            condition: service_healthy
+        mailpit:
+            condition: service_started
+
+services:
+    app:
+        <<: *app
+        ports:
+            - '127.0.0.1:${APP_PORT:-8000}:8000'
+
+    worker:
+        <<: *app
+        command: php artisan queue:work --sleep=1 --tries=3 --timeout=60
+        restart: unless-stopped
+        stop_grace_period: 70s
+
+    postgres:
+        image: postgres:17-bookworm
+        environment:
+            POSTGRES_DB: spirit_task
+            POSTGRES_USER: spirit
+            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local-password}
+        volumes:
+            - postgres:/var/lib/postgresql/data
+        healthcheck:
+            test: ['CMD-SHELL', 'pg_isready -U spirit -d spirit_task']
+            interval: 5s
+            timeout: 5s
+            retries: 10
+
+    mailpit:
+        image: axllent/mailpit:v1.27
+        ports:
+            - '127.0.0.1:${MAILPIT_PORT:-8026}:8025'
+
+volumes:
+    postgres:
+    vendor:
+    node_modules:
