@@ -10,6 +10,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 /**
  * @property string $id
  * @property string $status
+ * @property CarbonImmutable $created_at
+ * @property CarbonImmutable|null $paid_at
+ * @property CarbonImmutable|null $cancelled_at
  * @property CarbonImmutable $updated_at
  * @property CarbonImmutable $last_event_created_at
  * @property string $last_event_id

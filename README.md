@@ -2,7 +2,7 @@
 
 Laravel 13 + Vue (Inertia), PHP 8.4, Node.js 24, PostgreSQL 17.
 Условия задания находятся в [task/README.md](task/README.md).
-Реализованы приём вебхуков и хранение заказов, позиций и истории. API заказов и письма — следующие этапы.
+Реализованы вебхуки, хранение заказов и API списка/карточки заказа. Уведомления покупателям — следующий этап.
 Принятые допущения описаны в [DECISIONS.md](DECISIONS.md).
 
 ## Запуск с нуля
@@ -105,3 +105,24 @@ docker compose exec -e DB_DATABASE=spirit_webhooks_test app php tests/Integratio
 Скрипт отказывается работать с другой базой, применяет миграции и запускает 16
 параллельных подписанных запросов через HTTP kernel в независимых процессах.
 Проверяет дедупликацию, текущий снимок и историю. При повторном запуске использует новые ID.
+
+## API заказов
+
+Авторизация не требуется. Контракт: [task/openapi.yaml](task/openapi.yaml).
+
+```bash
+curl 'http://localhost:8000/api/orders?status=paid&per_page=20&page=1'
+curl 'http://localhost:8000/api/orders?email=anna.smirnova%40example.com'
+curl 'http://localhost:8000/api/orders/ord_7Q2KX9M4'
+```
+
+Список возвращает `data`, `links`, `meta`; карточка — `data` с позициями и историей.
+Email сравнивается целиком, без учёта регистра. Фильтры можно объединять.
+Сортировка — время оформления по убыванию, затем ID по убыванию для стабильного порядка.
+Размер страницы по умолчанию 20, максимум 100. Некорректные параметры дают JSON 422,
+неизвестный ID — JSON 404. Суммы представлены строками с двумя дробными знаками,
+даты — ISO 8601 в UTC.
+
+```bash
+docker compose exec app php artisan test tests/Feature/Orders
+```
