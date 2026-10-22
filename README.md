@@ -25,7 +25,8 @@ docker compose up -d app worker
 Если `.env` уже существует, сохраните его. Генерируйте ключ только при пустом `APP_KEY`.
 Укажите в `.env` собственный `MARKETPLACE_WEBHOOK_SECRET` для будущего обработчика вебхуков.
 
-- Приложение: http://localhost:8000
+- Админка заказов (без авторизации): http://localhost:8000/orders
+- Главная http://localhost:8000 перенаправляет в админку.
 - Mailpit (просмотр писем): http://localhost:8026
 - PostgreSQL внутри Docker: `postgres:5432`, база `spirit_task`, пользователь `spirit`.
 - SMTP внутри Docker: `mailpit:1025`, без авторизации.
@@ -162,3 +163,10 @@ docker compose exec app php artisan test tests/Feature/OrderNotifications
 ```bash
 docker compose exec -e DB_DATABASE=spirit_webhooks_test app php tests/Integration/check-notification-concurrency.php
 ```
+
+## Админка заказов
+
+Vue + Inertia: список с фильтрами по статусу и полному email (без учёта регистра),
+пагинация и карточка заказа с позициями, суммами, доставкой и историей статусов.
+Все даты показаны в UTC. Интерфейс только для просмотра; данные поступают через вебхуки.
+Фильтры сохраняются в URL, пустая выдача отображается отдельно.
