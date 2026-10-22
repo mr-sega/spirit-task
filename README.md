@@ -2,7 +2,7 @@
 
 Laravel 13 + Vue (Inertia), PHP 8.4, Node.js 24, PostgreSQL 17.
 Условия задания находятся в [task/README.md](task/README.md).
-Реализованы вебхуки, хранение заказов и API списка/карточки заказа. Уведомления покупателям — следующий этап.
+Реализованы вебхуки, хранение заказов, API списка/карточки и уведомления покупателям через очередь.
 Принятые допущения описаны в [DECISIONS.md](DECISIONS.md).
 
 ## Запуск с нуля
@@ -125,4 +125,40 @@ Email сравнивается целиком, без учёта регистр�
 
 ```bash
 docker compose exec app php artisan test tests/Feature/Orders
+```
+
+## Уведомления
+
+Воркер отправляет текстовые письма об оплате, передаче в доставку и отмене.
+Откройте http://localhost:8026 для просмотра. Повтор события не создаёт новое письмо;
+устаревшее уведомление подавляется перед отправкой. Каждое письмо использует актуальные
+данные заказа. При отмене оплаченного заказа указан срок возврата 10 дней.
+
+После обновления этой ветки:
+
+```bash
+docker compose exec app php artisan migrate
+docker compose restart worker
+```
+
+Проверка состояния и тесты:
+
+```bash
+docker compose exec app php artisan orders:notification-status
+docker compose exec app php artisan test tests/Feature/OrderNotifications
+```
+
+Статусы `pending`, `sending`, `sent`, `suppressed`, `uncertain` хранятся в
+`order_notifications`. `sending` означает активную или прерванную попытку;
+`uncertain` — ошибку после начала отправки. Проверьте Mailpit и логи, прежде чем
+принимать решение о восстановлении. Автоматической повторной SMTP-отправки таких
+попыток нет, чтобы не создать дубль. Ограничения описаны в `DECISIONS.md`.
+В database-очереди используется та же БД, что и у заказов; `DB_QUEUE_CONNECTION`
+не применяется. После изменения кода писем перезапускайте воркер.
+
+Дополнительно проверить восемь конкурентных воркеров и ровно одно письмо в Mailpit
+(тестовая БД `spirit_webhooks_test` создаётся командой из предыдущего раздела):
+
+```bash
+docker compose exec -e DB_DATABASE=spirit_webhooks_test app php tests/Integration/check-notification-concurrency.php
 ```
