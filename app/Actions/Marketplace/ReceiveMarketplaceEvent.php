@@ -2,6 +2,7 @@
 
 namespace App\Actions\Marketplace;
 
+use App\Actions\OrderNotifications\ScheduleOrderNotification;
 use App\Data\Marketplace\WebhookData;
 use App\Models\MarketplaceEvent;
 use App\Models\Order;
@@ -12,6 +13,7 @@ class ReceiveMarketplaceEvent
     public function __construct(
         private ApplyOrderSnapshot $applySnapshot,
         private RebuildOrderHistory $rebuildHistory,
+        private ScheduleOrderNotification $scheduleNotification,
     ) {}
 
     public function handle(WebhookData $data): void
@@ -40,6 +42,10 @@ class ReceiveMarketplaceEvent
             $event->update(['order_id' => $order->id]);
             $this->applySnapshot->handle($data, $order);
             $this->rebuildHistory->handle($order);
+
+            if ($order->last_event_id === $data->id()) {
+                $this->scheduleNotification->handle($order);
+            }
         }, attempts: 3);
     }
 
